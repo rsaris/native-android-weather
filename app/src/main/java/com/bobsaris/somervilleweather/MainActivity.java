@@ -2,30 +2,31 @@ package com.bobsaris.somervilleweather;
 
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.support.v7.app.AppCompatActivity;
+import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentActivity;
+import android.support.v4.app.FragmentManager;
+import android.support.v4.app.FragmentPagerAdapter;
+import android.support.v4.view.ViewPager;
 import android.util.Log;
-import android.util.Xml;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
 import android.widget.TextView;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends FragmentActivity {
   @Override
   protected void onCreate( Bundle savedInstanceState ) {
     super.onCreate( savedInstanceState );
@@ -75,32 +76,115 @@ public class MainActivity extends AppCompatActivity {
     }
 
     protected void onPostExecute( String result ) {
-      StringBuilder sb = new StringBuilder();
+      List<WeatherData> weatherData = new ArrayList<>();
 
       try {
         JSONObject response = new JSONObject( result );
         JSONObject timeData = response.getJSONObject( "time" );
-        JSONArray timePeriods = timeData.getJSONArray( "startPeriodName" );
+        JSONArray rawTimePeriods = timeData.getJSONArray( "startPeriodName" );
 
-        JSONObject weatherData = response.getJSONObject( "data" );
-        JSONArray temeratures = weatherData.getJSONArray( "temperature" );
-        JSONArray precipitationChances = weatherData.getJSONArray( "pop" );
-        JSONArray weathers = weatherData.getJSONArray( "weather" );
-        JSONArray weatherText = weatherData.getJSONArray( "text" );
+        JSONObject rawWeatherData = response.getJSONObject( "data" );
+        JSONArray rawTemeratures = rawWeatherData.getJSONArray( "temperature" );
+        JSONArray rawPercentOfPrecipitation = rawWeatherData.getJSONArray( "pop" );
+        JSONArray rawWeathers = rawWeatherData.getJSONArray( "weather" );
+        JSONArray rawWeatherTexts = rawWeatherData.getJSONArray( "text" );
 
-        for( int i = 0; i < timePeriods.length(); i++ ) {
-          sb.append( timePeriods.get( i ) );
-          sb.append( " -> " );
-          sb.append( weatherText.get( i ) );
-          sb.append( "\n\n" );
+        for( int i = 0; i < rawTimePeriods.length(); i++ ) {
+          weatherData.add(
+            new WeatherData(
+              rawTimePeriods.getString( i ),
+              rawTemeratures.getString( i ),
+              rawPercentOfPrecipitation.getString( i ),
+              rawWeathers.getString( i ),
+              rawWeatherTexts.getString( i )
+            )
+          );
         }
 
       } catch( JSONException je ) {
         Log.e( getResources().getString( R.string.exception_tag ), "Caught JSONException while processing result.", je );
       }
 
-      TextView weatherView = (TextView) findViewById( R.id.weather_view );
-      weatherView.setText( sb.toString() );
+      ViewPager pager = (ViewPager)findViewById(R.id.pager);
+      pager.setAdapter( new WeatherPagerAdapter( getSupportFragmentManager(), weatherData ) );
     }
+  }
+
+  private class WeatherPagerAdapter extends FragmentPagerAdapter {
+    List<WeatherData> _weatherData;
+
+    public WeatherPagerAdapter( FragmentManager fm, List<WeatherData> weatherData ) {
+      super( fm );
+
+      _weatherData = weatherData;
+    }
+
+    @Override
+    public int getCount() {
+      return _weatherData.size();
+    }
+
+    @Override
+    public Fragment getItem( int index ) {
+      return WeatherFragment.newInstance( _weatherData.get( index ) );
+    }
+  }
+
+  public static class WeatherFragment extends Fragment {
+    private static String ARG_KEY_TITLE = "title";
+    private static String ARG_KEY_WEATHER = "weather";
+
+    static WeatherFragment newInstance( WeatherData weatherData ) {
+      WeatherFragment fragment = new WeatherFragment();
+
+      // Supply num input as an argument.
+      Bundle args = new Bundle();
+      args.putString( ARG_KEY_TITLE, weatherData.getTitle() );
+      args.putString( ARG_KEY_WEATHER, weatherData.getWeatherText() );
+      fragment.setArguments(args);
+
+      return fragment;
+    }
+
+    @Override
+    public View onCreateView( LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+      View v = inflater.inflate( R.layout.text_layout, container, false );
+      TextView tv = (TextView)v.findViewById( R.id.text_view );
+
+      StringBuilder sb = new StringBuilder();
+      Bundle arguments = getArguments();
+      if( arguments == null ) {
+        sb.append( "There was an error..." );
+      } else {
+        sb.append( arguments.getString( ARG_KEY_TITLE ) );
+        sb.append( "\n" );
+        sb.append( arguments.getString( ARG_KEY_WEATHER ) );
+      }
+
+      tv.setText( sb.toString() );
+      return v;
+    }
+  }
+
+  private class WeatherData {
+    private String _title;
+    private String _temperature;
+    private String _percentOfPrecipitation;
+    private String _weather;
+    private String _weatherText;
+
+    public WeatherData( String title, String temperature, String percentOfPrecipitation, String weather, String weatherText ) {
+      _title = title;
+      _temperature = temperature;
+      _percentOfPrecipitation = percentOfPrecipitation;
+      _weather = weather;
+      _weatherText = weatherText;
+    }
+
+    public String getTitle() { return _title; }
+    public String getTemperature() { return _temperature; }
+    public String getPercentOfPrecipitation() { return _percentOfPrecipitation; }
+    public String getWeather() { return _weather; }
+    public String getWeatherText() { return _weatherText; }
   }
 }
