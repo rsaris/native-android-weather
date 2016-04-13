@@ -148,20 +148,19 @@ public class MainActivity extends FragmentActivity {
 
     @Override
     public View onCreateView( LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-      View v = inflater.inflate( R.layout.text_layout, container, false );
-      TextView tv = (TextView)v.findViewById( R.id.text_view );
+      View v = inflater.inflate( R.layout.weather_layout, container, false );
+      TextView titleView = (TextView)v.findViewById( R.id.title );
+      TextView weatherView = (TextView)v.findViewById( R.id.weather );
 
-      StringBuilder sb = new StringBuilder();
       Bundle arguments = getArguments();
       if( arguments == null ) {
-        sb.append( "There was an error..." );
+        titleView.setText( "Error" );
+        weatherView.setText( "There was an error loading information..." );
       } else {
-        sb.append( arguments.getString( ARG_KEY_TITLE ) );
-        sb.append( "\n" );
-        sb.append( arguments.getString( ARG_KEY_WEATHER ) );
+        titleView.setText( arguments.getString( ARG_KEY_TITLE ) );
+        weatherView.setText( arguments.getString( ARG_KEY_WEATHER ) );
       }
 
-      tv.setText( sb.toString() );
       return v;
     }
   }
