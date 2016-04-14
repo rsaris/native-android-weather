@@ -84,7 +84,7 @@ public class MainActivity extends FragmentActivity {
         JSONArray rawTimePeriods = timeData.getJSONArray( "startPeriodName" );
 
         JSONObject rawWeatherData = response.getJSONObject( "data" );
-        JSONArray rawTemeratures = rawWeatherData.getJSONArray( "temperature" );
+        JSONArray rawTemperatures = rawWeatherData.getJSONArray( "temperature" );
         JSONArray rawPercentOfPrecipitation = rawWeatherData.getJSONArray( "pop" );
         JSONArray rawWeathers = rawWeatherData.getJSONArray( "weather" );
         JSONArray rawWeatherTexts = rawWeatherData.getJSONArray( "text" );
@@ -93,7 +93,7 @@ public class MainActivity extends FragmentActivity {
           weatherData.add(
             new WeatherData(
               rawTimePeriods.getString( i ),
-              rawTemeratures.getString( i ),
+              rawTemperatures.getString( i ),
               rawPercentOfPrecipitation.getString( i ),
               rawWeathers.getString( i ),
               rawWeatherTexts.getString( i )
