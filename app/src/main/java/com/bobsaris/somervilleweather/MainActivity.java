@@ -8,7 +8,6 @@ import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
-import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.util.Log;
@@ -144,7 +143,6 @@ public class MainActivity extends FragmentActivity {
       List<WeatherData> weatherData = getItem( position );
 
       ViewPager pager = (ViewPager)convertView.findViewById( R.id.pager );
-      // pager.setAdapter( new WeatherViewPagerAdapter( weatherData, _context ) );
       pager.setAdapter( new WeatherPagerAdapter( getSupportFragmentManager(), weatherData ) );
       pager.addOnPageChangeListener( new ViewPager.OnPageChangeListener() {
         @Override
@@ -162,45 +160,6 @@ public class MainActivity extends FragmentActivity {
       });
 
       return convertView;
-    }
-  }
-
-  private static class WeatherViewPagerAdapter extends PagerAdapter {
-    private List<WeatherData> _weatherData;
-    private Context _context;
-
-    public WeatherViewPagerAdapter( List<WeatherData> weatherData, Context context ){
-      _weatherData = weatherData;
-      _context = context;
-    }
-
-    @Override
-    public int getCount() {
-      return _weatherData.size();
-    }
-
-    @Override
-    public Object instantiateItem(ViewGroup parent, int position) {
-      WeatherData data = _weatherData.get( position );
-
-      View parentView = LayoutInflater.from( _context ).inflate( R.layout.weather_layout, parent, false );
-      TextView titleView = (TextView)parentView.findViewById( R.id.title );
-      titleView.setText( data.getTitle() );
-      TextView weatherView = (TextView)parentView.findViewById( R.id.weather );
-      weatherView.setText( data.getWeatherText() );
-      parent.addView(parentView);
-
-      return parentView;
-    }
-
-    @Override
-    public void destroyItem(ViewGroup parent, int position, Object view) {
-      parent.removeView((View) view);
-    }
-
-    @Override
-    public boolean isViewFromObject(View view, Object object) {
-      return view == object;
     }
   }
 
