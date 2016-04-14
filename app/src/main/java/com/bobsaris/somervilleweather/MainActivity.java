@@ -1,16 +1,22 @@
 package com.bobsaris.somervilleweather;
 
+import android.app.Activity;
+import android.content.Context;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
+import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
+import android.widget.ListView;
 import android.widget.TextView;
 
 import org.json.JSONArray;
@@ -27,16 +33,19 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends FragmentActivity {
+  private SwipeRefreshLayout _refreshView;
+
   @Override
   protected void onCreate( Bundle savedInstanceState ) {
     super.onCreate( savedInstanceState );
-    setContentView( R.layout.activity_main );
+    setContentView( R.layout.refresh_list_layout );
+    _refreshView = (SwipeRefreshLayout)findViewById( R.id.refresh );
 
     WeatherTask _weatherTask = new WeatherTask();
-    _weatherTask.execute();
+    _weatherTask.execute( this );
   }
 
-  private class WeatherTask extends AsyncTask<Void, Integer, String> {
+  private class WeatherTask extends AsyncTask<Activity, Integer, String> {
     private String SOMERVILLE_ZIP = "02143";
     private String SOMERVILLE_LAT = "42.39";
     private String SOMERVILLE_LON = "-71.15";
@@ -44,7 +53,11 @@ public class MainActivity extends FragmentActivity {
     // private String NOAA_BASE_URL = "http://graphical.weather.gov/xml/sample_products/browser_interface/ndfdBrowserClientByDay.php";
     private String NOAA_BASE_URL = "http://forecast.weather.gov/MapClick.php";
 
-    protected String doInBackground( Void... activity ) {
+    private Activity _context;
+
+    protected String doInBackground( Activity... activities) {
+      _context = activities[0];
+
       try {
         URL url = new URL(
           NOAA_BASE_URL +
@@ -72,45 +85,126 @@ public class MainActivity extends FragmentActivity {
         Log.e( getResources().getString( R.string.exception_tag ), "Caught IOException when reading weather response.", ioe );
       }
 
-      return "There was an error.";
+      return null;
     }
 
     protected void onPostExecute( String result ) {
       List<WeatherData> weatherData = new ArrayList<>();
 
-      try {
-        JSONObject response = new JSONObject( result );
-        JSONObject timeData = response.getJSONObject( "time" );
-        JSONArray rawTimePeriods = timeData.getJSONArray( "startPeriodName" );
+      if( result != null ) {
+        try {
+          JSONObject response = new JSONObject( result );
+          JSONObject timeData = response.getJSONObject( "time" );
+          JSONArray rawTimePeriods = timeData.getJSONArray( "startPeriodName" );
 
-        JSONObject rawWeatherData = response.getJSONObject( "data" );
-        JSONArray rawTemperatures = rawWeatherData.getJSONArray( "temperature" );
-        JSONArray rawPercentOfPrecipitation = rawWeatherData.getJSONArray( "pop" );
-        JSONArray rawWeathers = rawWeatherData.getJSONArray( "weather" );
-        JSONArray rawWeatherTexts = rawWeatherData.getJSONArray( "text" );
+          JSONObject rawWeatherData = response.getJSONObject( "data" );
+          JSONArray rawTemperatures = rawWeatherData.getJSONArray( "temperature" );
+          JSONArray rawPercentOfPrecipitation = rawWeatherData.getJSONArray( "pop" );
+          JSONArray rawWeathers = rawWeatherData.getJSONArray( "weather" );
+          JSONArray rawWeatherTexts = rawWeatherData.getJSONArray( "text" );
 
-        for( int i = 0; i < rawTimePeriods.length(); i++ ) {
-          weatherData.add(
-            new WeatherData(
-              rawTimePeriods.getString( i ),
-              rawTemperatures.getString( i ),
-              rawPercentOfPrecipitation.getString( i ),
-              rawWeathers.getString( i ),
-              rawWeatherTexts.getString( i )
-            )
-          );
+          for( int i = 0; i < rawTimePeriods.length(); i++ ) {
+            weatherData.add(
+              new WeatherData(
+                rawTimePeriods.getString( i ),
+                rawTemperatures.getString( i ),
+                rawPercentOfPrecipitation.getString( i ),
+                rawWeathers.getString( i ),
+                rawWeatherTexts.getString( i )
+              )
+            );
+          }
+
+        } catch( JSONException je ) {
+          Log.e( getResources().getString( R.string.exception_tag ), "Caught JSONException while processing result.", je );
         }
-
-      } catch( JSONException je ) {
-        Log.e( getResources().getString( R.string.exception_tag ), "Caught JSONException while processing result.", je );
       }
 
-      ViewPager pager = (ViewPager)findViewById(R.id.pager);
-      pager.setAdapter( new WeatherPagerAdapter( getSupportFragmentManager(), weatherData ) );
+      List<List<WeatherData>> weatherDataList = new ArrayList<>();
+      weatherDataList.add( weatherData );
+      ListView listView = (ListView)findViewById( R.id.list );
+      listView.setAdapter( new WeatherListAdapter( _context, weatherDataList ) );
     }
   }
 
-  private class WeatherPagerAdapter extends FragmentPagerAdapter {
+  private class WeatherListAdapter extends ArrayAdapter<List<WeatherData>> {
+    private Context _context;
+
+    public WeatherListAdapter( Context context, List<List<WeatherData>> weatherDataList ) {
+      super( context, R.layout.pager_layout, weatherDataList );
+      _context = context;
+    }
+
+    @Override
+    public View getView(int position, View convertView, ViewGroup parent) {
+      if( convertView == null ) {
+        convertView = LayoutInflater.from( _context ).inflate( R.layout.pager_layout, parent, false );
+      }
+      convertView.setMinimumHeight( parent.getHeight() );
+      List<WeatherData> weatherData = getItem( position );
+
+      ViewPager pager = (ViewPager)convertView.findViewById( R.id.pager );
+      // pager.setAdapter( new WeatherViewPagerAdapter( weatherData, _context ) );
+      pager.setAdapter( new WeatherPagerAdapter( getSupportFragmentManager(), weatherData ) );
+      pager.addOnPageChangeListener( new ViewPager.OnPageChangeListener() {
+        @Override
+        public void onPageScrolled( int position, float v, int i1 ) {
+        }
+
+        @Override
+        public void onPageSelected( int position ) {
+        }
+
+        @Override
+        public void onPageScrollStateChanged( int state ) {
+          _refreshView.setEnabled( state == ViewPager.SCROLL_STATE_IDLE );
+        }
+      });
+
+      return convertView;
+    }
+  }
+
+  private static class WeatherViewPagerAdapter extends PagerAdapter {
+    private List<WeatherData> _weatherData;
+    private Context _context;
+
+    public WeatherViewPagerAdapter( List<WeatherData> weatherData, Context context ){
+      _weatherData = weatherData;
+      _context = context;
+    }
+
+    @Override
+    public int getCount() {
+      return _weatherData.size();
+    }
+
+    @Override
+    public Object instantiateItem(ViewGroup parent, int position) {
+      WeatherData data = _weatherData.get( position );
+
+      View parentView = LayoutInflater.from( _context ).inflate( R.layout.weather_layout, parent, false );
+      TextView titleView = (TextView)parentView.findViewById( R.id.title );
+      titleView.setText( data.getTitle() );
+      TextView weatherView = (TextView)parentView.findViewById( R.id.weather );
+      weatherView.setText( data.getWeatherText() );
+      parent.addView(parentView);
+
+      return parentView;
+    }
+
+    @Override
+    public void destroyItem(ViewGroup parent, int position, Object view) {
+      parent.removeView((View) view);
+    }
+
+    @Override
+    public boolean isViewFromObject(View view, Object object) {
+      return view == object;
+    }
+  }
+
+  private static class WeatherPagerAdapter extends FragmentPagerAdapter {
     List<WeatherData> _weatherData;
 
     public WeatherPagerAdapter( FragmentManager fm, List<WeatherData> weatherData ) {
@@ -137,7 +231,6 @@ public class MainActivity extends FragmentActivity {
     static WeatherFragment newInstance( WeatherData weatherData ) {
       WeatherFragment fragment = new WeatherFragment();
 
-      // Supply num input as an argument.
       Bundle args = new Bundle();
       args.putString( ARG_KEY_TITLE, weatherData.getTitle() );
       args.putString( ARG_KEY_WEATHER, weatherData.getWeatherText() );
@@ -165,7 +258,7 @@ public class MainActivity extends FragmentActivity {
     }
   }
 
-  private class WeatherData {
+  private static class WeatherData {
     private String _title;
     private String _temperature;
     private String _percentOfPrecipitation;
