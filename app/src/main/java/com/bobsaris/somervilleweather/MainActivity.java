@@ -4,10 +4,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.support.v4.app.Fragment;
-import android.support.v4.app.FragmentActivity;
-import android.support.v4.app.FragmentManager;
-import android.support.v4.app.FragmentPagerAdapter;
+import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.util.Log;
@@ -31,20 +28,42 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MainActivity extends FragmentActivity {
+public class MainActivity extends Activity {
   private SwipeRefreshLayout _refreshView;
+  private List<WeatherData> _weatherData;
+  private WeatherListAdapter _listAdapter;
+  private WeatherViewPagerAdapter _pagerAdapter;
 
   @Override
   protected void onCreate( Bundle savedInstanceState ) {
     super.onCreate( savedInstanceState );
     setContentView( R.layout.refresh_list_layout );
-    _refreshView = (SwipeRefreshLayout)findViewById( R.id.refresh );
 
-    WeatherTask _weatherTask = new WeatherTask();
-    _weatherTask.execute( this );
+    _weatherData = new ArrayList<>();
+    List<List<WeatherData>> listViewList = new ArrayList<>();
+    listViewList.add( _weatherData );
+
+    _pagerAdapter = new WeatherViewPagerAdapter( this, _weatherData );
+
+    _refreshView = (SwipeRefreshLayout) findViewById( R.id.refresh );
+    _refreshView.setOnRefreshListener( new SwipeRefreshLayout.OnRefreshListener() {
+      @Override
+      public void onRefresh() {
+        WeatherTask weatherTask = new WeatherTask();
+        weatherTask.execute();
+      }
+    });
+
+    _listAdapter = new WeatherListAdapter( this );
+
+    ListView listView = (ListView) _refreshView.findViewById( R.id.list );
+    listView.setAdapter( _listAdapter );
+
+    WeatherTask weatherTask = new WeatherTask();
+    weatherTask.execute();
   }
 
-  private class WeatherTask extends AsyncTask<Activity, Integer, String> {
+  private class WeatherTask extends AsyncTask<Void, Integer, String> {
     private String SOMERVILLE_ZIP = "02143";
     private String SOMERVILLE_LAT = "42.39";
     private String SOMERVILLE_LON = "-71.15";
@@ -52,11 +71,7 @@ public class MainActivity extends FragmentActivity {
     // private String NOAA_BASE_URL = "http://graphical.weather.gov/xml/sample_products/browser_interface/ndfdBrowserClientByDay.php";
     private String NOAA_BASE_URL = "http://forecast.weather.gov/MapClick.php";
 
-    private Activity _context;
-
-    protected String doInBackground( Activity... activities) {
-      _context = activities[0];
-
+    protected String doInBackground( Void... placeholder ) {
       try {
         URL url = new URL(
           NOAA_BASE_URL +
@@ -70,7 +85,7 @@ public class MainActivity extends FragmentActivity {
           BufferedReader reader = new BufferedReader( new InputStreamReader( urlConnection.getInputStream() ) );
           StringBuilder sb = new StringBuilder();
           String line = null;
-          while( (line = reader.readLine()) != null ) {
+          while( ( line = reader.readLine() ) != null ) {
             sb.append( line );
             sb.append( "\n" );
           }
@@ -88,8 +103,6 @@ public class MainActivity extends FragmentActivity {
     }
 
     protected void onPostExecute( String result ) {
-      List<WeatherData> weatherData = new ArrayList<>();
-
       if( result != null ) {
         try {
           JSONObject response = new JSONObject( result );
@@ -102,8 +115,9 @@ public class MainActivity extends FragmentActivity {
           JSONArray rawWeathers = rawWeatherData.getJSONArray( "weather" );
           JSONArray rawWeatherTexts = rawWeatherData.getJSONArray( "text" );
 
+          _weatherData.clear();
           for( int i = 0; i < rawTimePeriods.length(); i++ ) {
-            weatherData.add(
+            _weatherData.add(
               new WeatherData(
                 rawTimePeriods.getString( i ),
                 rawTemperatures.getString( i ),
@@ -113,63 +127,64 @@ public class MainActivity extends FragmentActivity {
               )
             );
           }
-
         } catch( JSONException je ) {
           Log.e( getResources().getString( R.string.exception_tag ), "Caught JSONException while processing result.", je );
         }
       }
 
-      List<List<WeatherData>> weatherDataList = new ArrayList<>();
-      weatherDataList.add( weatherData );
-      ListView listView = (ListView)findViewById( R.id.list );
-      listView.setAdapter( new WeatherListAdapter( _context, weatherDataList ) );
+      _listAdapter.notifyDataSetChanged();
+      _refreshView.setRefreshing( false );
     }
   }
 
-  private class WeatherListAdapter extends ArrayAdapter<List<WeatherData>> {
+  private class WeatherListAdapter extends ArrayAdapter {
     private Context _context;
 
-    public WeatherListAdapter( Context context, List<List<WeatherData>> weatherDataList ) {
-      super( context, R.layout.pager_layout, weatherDataList );
+    // YES! This is silly, but it's easier to just extend an ArrayAdapter with a dummy array
+    // than it is to extend Adapter and figure all that noise out...
+    public WeatherListAdapter( Context context ) {
+      super( context, R.layout.pager_layout, new Integer[]{ Integer.valueOf( 0 ) } );
       _context = context;
     }
 
     @Override
-    public View getView(int position, View convertView, ViewGroup parent) {
+    public View getView( int position, View convertView, ViewGroup parent ) {
+      ViewPager pager;
       if( convertView == null ) {
         convertView = LayoutInflater.from( _context ).inflate( R.layout.pager_layout, parent, false );
+        pager = (ViewPager) convertView.findViewById( R.id.pager );
+        pager.setAdapter( _pagerAdapter );
+        pager.addOnPageChangeListener( new ViewPager.OnPageChangeListener() {
+          @Override
+          public void onPageScrolled( int position, float v, int i1 ) {
+          }
+
+          @Override
+          public void onPageSelected( int position ) {
+          }
+
+          @Override
+          public void onPageScrollStateChanged( int state ) {
+            _refreshView.setEnabled( state == ViewPager.SCROLL_STATE_IDLE );
+          }
+        } );
+      } else {
+        pager = (ViewPager) convertView.findViewById( R.id.pager );
+        pager.getAdapter().notifyDataSetChanged();
       }
+
       convertView.setMinimumHeight( parent.getHeight() );
-      List<WeatherData> weatherData = getItem( position );
-
-      ViewPager pager = (ViewPager)convertView.findViewById( R.id.pager );
-      pager.setAdapter( new WeatherPagerAdapter( getSupportFragmentManager(), weatherData ) );
-      pager.addOnPageChangeListener( new ViewPager.OnPageChangeListener() {
-        @Override
-        public void onPageScrolled( int position, float v, int i1 ) {
-        }
-
-        @Override
-        public void onPageSelected( int position ) {
-        }
-
-        @Override
-        public void onPageScrollStateChanged( int state ) {
-          _refreshView.setEnabled( state == ViewPager.SCROLL_STATE_IDLE );
-        }
-      });
-
       return convertView;
     }
   }
 
-  private static class WeatherPagerAdapter extends FragmentPagerAdapter {
-    List<WeatherData> _weatherData;
+  private static class WeatherViewPagerAdapter extends PagerAdapter {
+    private List<WeatherData> _weatherData;
+    private Context _context;
 
-    public WeatherPagerAdapter( FragmentManager fm, List<WeatherData> weatherData ) {
-      super( fm );
-
+    public WeatherViewPagerAdapter( Context context, List<WeatherData> weatherData ) {
       _weatherData = weatherData;
+      _context = context;
     }
 
     @Override
@@ -178,42 +193,33 @@ public class MainActivity extends FragmentActivity {
     }
 
     @Override
-    public Fragment getItem( int index ) {
-      return WeatherFragment.newInstance( _weatherData.get( index ) );
-    }
-  }
+    public Object instantiateItem( ViewGroup parent, int position ) {
+      WeatherData data = _weatherData.get( position );
 
-  public static class WeatherFragment extends Fragment {
-    private static String ARG_KEY_TITLE = "title";
-    private static String ARG_KEY_WEATHER = "weather";
+      View parentView = LayoutInflater.from( _context ).inflate( R.layout.weather_layout, parent, false );
+      TextView titleView = (TextView) parentView.findViewById( R.id.title );
+      titleView.setText( data.getTitle() );
+      TextView weatherView = (TextView) parentView.findViewById( R.id.weather );
+      weatherView.setText( data.getWeatherText() );
+      parent.addView( parentView );
 
-    static WeatherFragment newInstance( WeatherData weatherData ) {
-      WeatherFragment fragment = new WeatherFragment();
-
-      Bundle args = new Bundle();
-      args.putString( ARG_KEY_TITLE, weatherData.getTitle() );
-      args.putString( ARG_KEY_WEATHER, weatherData.getWeatherText() );
-      fragment.setArguments(args);
-
-      return fragment;
+      return parentView;
     }
 
     @Override
-    public View onCreateView( LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-      View v = inflater.inflate( R.layout.weather_layout, container, false );
-      TextView titleView = (TextView)v.findViewById( R.id.title );
-      TextView weatherView = (TextView)v.findViewById( R.id.weather );
+    public void destroyItem( ViewGroup parent, int position, Object view ) {
+      parent.removeView( (View) view );
+    }
 
-      Bundle arguments = getArguments();
-      if( arguments == null ) {
-        titleView.setText( "Error" );
-        weatherView.setText( "There was an error loading information..." );
-      } else {
-        titleView.setText( arguments.getString( ARG_KEY_TITLE ) );
-        weatherView.setText( arguments.getString( ARG_KEY_WEATHER ) );
-      }
+    @Override
+    public boolean isViewFromObject( View view, Object object ) {
+      return view == object;
+    }
 
-      return v;
+    @Override
+    public int getItemPosition( Object object ) {
+      // TODO: This is probably a bad idea, should probably figure out how to update the views we have
+      return POSITION_NONE;
     }
   }
 
