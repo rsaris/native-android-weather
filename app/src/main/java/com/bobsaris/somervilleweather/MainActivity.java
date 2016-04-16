@@ -171,6 +171,7 @@ public class MainActivity extends Activity {
       } else {
         pager = (ViewPager) convertView.findViewById( R.id.pager );
         pager.getAdapter().notifyDataSetChanged();
+        pager.setCurrentItem( 0 );
       }
 
       convertView.setMinimumHeight( parent.getHeight() );
