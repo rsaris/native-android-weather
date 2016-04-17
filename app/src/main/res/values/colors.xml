@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">#3F51B5</color>
+    <color name="colorPrimary">#0765B3</color>
     <color name="colorPrimaryDark">#303F9F</color>
     <color name="colorAccent">#FF4081</color>
+
+    <color name="nightBackground">#040C12</color>
+    <color name="nightText">#FFFFFF</color>
+    <color name="dayBackground">#0765B3</color>
+    <color name="dayText">#FFFFFF</color>
 </resources>

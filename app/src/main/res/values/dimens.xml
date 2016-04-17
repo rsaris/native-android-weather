@@ -1,5 +1,9 @@
 <resources>
-    <!-- Default screen margins, per the Android Design guidelines. -->
-    <dimen name="activity_horizontal_margin">16dp</dimen>
-    <dimen name="activity_vertical_margin">16dp</dimen>
+    <dimen name="weather_padding_side">20dp</dimen>
+    <dimen name="weather_image_margin_top">100dp</dimen>
+    <dimen name="weather_image_margin_bottom">50dp</dimen>
+    <dimen name="weather_title_margin_top">0dp</dimen>
+    <dimen name="weather_title_margin_bottom">50dp</dimen>
+    <dimen name="weather_text_margin_top">0dp</dimen>
+    <dimen name="weather_text_margin_bottom">0dp</dimen>
 </resources>

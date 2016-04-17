@@ -2,8 +2,10 @@ package com.bobsaris.somervilleweather;
 
 import android.app.Activity;
 import android.content.Context;
+import android.graphics.drawable.Drawable;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.support.v4.content.ContextCompat;
 import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.support.v4.widget.SwipeRefreshLayout;
@@ -12,6 +14,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
 
@@ -27,6 +30,8 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MainActivity extends Activity {
   private SwipeRefreshLayout _refreshView;
@@ -58,7 +63,6 @@ public class MainActivity extends Activity {
 
     ListView listView = (ListView) _refreshView.findViewById( R.id.list );
     listView.setAdapter( _listAdapter );
-
     WeatherTask weatherTask = new WeatherTask();
     weatherTask.execute();
   }
@@ -114,6 +118,7 @@ public class MainActivity extends Activity {
           JSONArray rawPercentOfPrecipitation = rawWeatherData.getJSONArray( "pop" );
           JSONArray rawWeathers = rawWeatherData.getJSONArray( "weather" );
           JSONArray rawWeatherTexts = rawWeatherData.getJSONArray( "text" );
+          JSONArray rawIconURLs = rawWeatherData.getJSONArray( "iconLink" );
 
           _weatherData.clear();
           for( int i = 0; i < rawTimePeriods.length(); i++ ) {
@@ -123,7 +128,8 @@ public class MainActivity extends Activity {
                 rawTemperatures.getString( i ),
                 rawPercentOfPrecipitation.getString( i ),
                 rawWeathers.getString( i ),
-                rawWeatherTexts.getString( i )
+                rawWeatherTexts.getString( i ),
+                rawIconURLs.getString( i )
               )
             );
           }
@@ -196,14 +202,28 @@ public class MainActivity extends Activity {
     @Override
     public Object instantiateItem( ViewGroup parent, int position ) {
       WeatherData data = _weatherData.get( position );
+      boolean isNight = data.getTitle().toLowerCase().contains( "night" );
 
       View parentView = LayoutInflater.from( _context ).inflate( R.layout.weather_layout, parent, false );
+      ImageView iconView = (ImageView) parentView.findViewById( R.id.weather_icon );
       TextView titleView = (TextView) parentView.findViewById( R.id.title );
-      titleView.setText( data.getTitle() );
-      TextView weatherView = (TextView) parentView.findViewById( R.id.weather );
-      weatherView.setText( data.getWeatherText() );
-      parent.addView( parentView );
+      TextView weatherTextView = (TextView) parentView.findViewById( R.id.weather_text );
 
+      iconView.setImageDrawable( data.getIconDrawable( _context ) );
+      titleView.setText( data.getTitle() );
+      weatherTextView.setText( data.getWeather() + "\n" + data.getWeatherText() );
+
+      if( isNight ) {
+        parentView.setBackgroundColor( ContextCompat.getColor( _context, R.color.nightBackground ) );
+        titleView.setTextColor( ContextCompat.getColor( _context, R.color.nightText ) );
+        weatherTextView.setTextColor( ContextCompat.getColor( _context, R.color.nightText ) );
+      } else {
+        parentView.setBackgroundColor( ContextCompat.getColor( _context, R.color.dayBackground ) );
+        titleView.setTextColor( ContextCompat.getColor( _context, R.color.dayText ) );
+        weatherTextView.setTextColor( ContextCompat.getColor( _context, R.color.dayText ) );
+      }
+
+      parent.addView( parentView );
       return parentView;
     }
 
@@ -230,13 +250,158 @@ public class MainActivity extends Activity {
     private String _percentOfPrecipitation;
     private String _weather;
     private String _weatherText;
+    private String _iconURL;
 
-    public WeatherData( String title, String temperature, String percentOfPrecipitation, String weather, String weatherText ) {
+    public WeatherData( String title, String temperature, String percentOfPrecipitation, String weather, String weatherText, String iconURL ) {
       _title = title;
       _temperature = temperature;
       _percentOfPrecipitation = percentOfPrecipitation;
       _weather = weather;
       _weatherText = weatherText;
+      _iconURL = iconURL;
+    }
+
+    public Drawable getIconDrawable( Context context ) {
+      int iconID = R.drawable.weather_unknown;
+
+      Pattern simplePattern = Pattern.compile( ".*\\/(.*).png\\z" );
+      Pattern doublePattern = Pattern.compile( ".*DualImage.php\\?i=(.*)&j=(.*)&?.*" );
+
+      Matcher simpleMatcher = simplePattern.matcher( _iconURL );
+      Matcher doubleMatcher = doublePattern.matcher( _iconURL );
+      if( simpleMatcher.matches() || doubleMatcher.matches() ) {
+        String matchFile = (simpleMatcher.matches() ? simpleMatcher.group( 1 ) : doubleMatcher.group( 1 ));
+        switch( matchFile ) {
+          case "nbkn":
+          case "nskc":
+          case "nfew":
+            iconID = R.drawable.weather_night_clear;
+            break;
+          case "bkn":
+          case "skc":
+          case "few":
+            iconID = R.drawable.weather_day_clear;
+            break;
+          case "nsct":
+            iconID = R.drawable.weather_night_cloudy;
+            break;
+          case "sct":
+            iconID = R.drawable.weather_day_cloudy;
+            break;
+          case "shra":
+          case "shra10":
+          case "shra20":
+          case "shra30":
+          case "shra40":
+          case "ra":
+          case "ra10":
+          case "ra20":
+          case "ra30":
+          case "ra40":
+          case "hi_shwrs":
+          case "hi_shwrs10":
+          case "hi_shwrs20":
+          case "hi_shwrs30":
+          case "hi_shwrs40":
+            iconID = R.drawable.weather_sunny_rain;
+            break;
+          case "nshra":
+          case "nshra10":
+          case "nshra20":
+          case "nshra30":
+          case "nshra40":
+          case "nra":
+          case "nra10":
+          case "nra20":
+          case "nra30":
+          case "nra40":
+            iconID = R.drawable.weather_moon_rain;
+            break;
+          case "ra50":
+          case "ra60":
+          case "ra70":
+          case "ra80":
+          case "ra90":
+          case "ra100":
+          case "shra50":
+          case "shra60":
+          case "shra70":
+          case "shra80":
+          case "shra90":
+          case "shra100":
+          case "nshra50":
+          case "nshra60":
+          case "nshra70":
+          case "nshra80":
+          case "nshra90":
+          case "nshra100":
+          case "nra50":
+          case "nra60":
+          case "nra70":
+          case "nra80":
+          case "nra90":
+          case "nra100":
+          case "hi_shwrs50":
+          case "hi_shwrs60":
+          case "hi_shwrs70":
+          case "hi_shwrs80":
+          case "hi_shwrs90":
+          case "hi_shwrs100":
+            iconID = R.drawable.weather_rain;
+            break;
+          case "ntsra":
+          case "ntsra10":
+          case "ntsra20":
+          case "ntsra30":
+          case "ntsra40":
+          case "hi_ntsra":
+          case "hi_ntsra10":
+          case "hi_ntsra20":
+          case "hi_ntsra30":
+          case "hi_ntsra40":
+            iconID = R.drawable.weather_night_thunderstorm;
+            break;
+          case "tsra":
+          case "tsra10":
+          case "tsra20":
+          case "tsra30":
+          case "tsra40":
+          case "tsra50":
+          case "tsra60":
+          case "tsra70":
+          case "tsra80":
+          case "tsra90":
+          case "tsra100":
+          case "ntsra50":
+          case "ntsra60":
+          case "ntsra70":
+          case "ntsra80":
+          case "ntsra90":
+          case "ntsra100":
+          case "hi_tsra":
+          case "hi_tsra10":
+          case "hi_tsra20":
+          case "hi_tsra30":
+          case "hi_tsra40":
+          case "hi_tsra50":
+          case "hi_tsra60":
+          case "hi_tsra70":
+          case "hi_tsra80":
+          case "hi_tsra90":
+          case "hi_tsra100":
+          case "hi_ntsra50":
+          case "hi_ntsra60":
+          case "hi_ntsra70":
+          case "hi_ntsra80":
+          case "hi_ntsra90":
+          case "hi_ntsra100":
+          case "scttsra":
+            iconID = R.drawable.weather_thunderstorm;
+            break;
+        }
+      }
+
+      return ContextCompat.getDrawable( context, iconID );
     }
 
     public String getTitle() { return _title; }
@@ -244,5 +409,6 @@ public class MainActivity extends Activity {
     public String getPercentOfPrecipitation() { return _percentOfPrecipitation; }
     public String getWeather() { return _weather; }
     public String getWeatherText() { return _weatherText; }
+    public String iconURL() { return _iconURL; }
   }
 }

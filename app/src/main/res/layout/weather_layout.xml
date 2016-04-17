@@ -3,27 +3,37 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:paddingLeft="@dimen/weather_padding_side"
+    android:paddingRight="@dimen/weather_padding_side"
     android:orientation="vertical"
     android:weightSum="1">
-    <TextView
-        android:id="@+id/title"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:textAppearance="?android:attr/textAppearanceLarge"
-        android:text="Loading..."
+    <ImageView
+        android:id="@+id/weather_icon"
+        android:layout_width="wrap_content"
+        android:layout_height="100dp"
         android:layout_gravity="center_horizontal"
-        android:layout_weight=".2"
-        android:textAlignment="center"
-        android:gravity="center_vertical"
+        android:layout_marginTop="@dimen/weather_image_margin_top"
+        android:layout_marginBottom="@dimen/weather_image_margin_bottom"
         />
 
     <TextView
-        android:id="@+id/weather"
+        android:id="@+id/title"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/weather_title_margin_top"
+        android:layout_marginBottom="@dimen/weather_title_margin_bottom"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:text="Loading..."
+        android:textAlignment="center"
+        />
+
+    <TextView
+        android:id="@+id/weather_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/weather_text_margin_top"
+        android:layout_marginBottom="@dimen/weather_text_margin_bottom"
         android:textAppearance="?android:attr/textAppearanceMedium"
-        android:layout_gravity="center_horizontal"
-        android:layout_weight=".8"
         android:textAlignment="center"
         android:text="Loading..." />
 </LinearLayout>
