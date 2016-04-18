@@ -1,6 +1,6 @@
 <resources>
     <dimen name="weather_padding_side">20dp</dimen>
-    <dimen name="weather_image_margin_top">100dp</dimen>
+    <dimen name="weather_image_margin_top">50dp</dimen>
     <dimen name="weather_image_margin_bottom">50dp</dimen>
     <dimen name="weather_title_margin_top">0dp</dimen>
     <dimen name="weather_title_margin_bottom">50dp</dimen>
