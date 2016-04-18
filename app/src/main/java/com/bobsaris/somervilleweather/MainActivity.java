@@ -2,7 +2,9 @@ package com.bobsaris.somervilleweather;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.drawable.Drawable;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v4.content.ContextCompat;
@@ -225,7 +227,7 @@ public class MainActivity extends Activity {
 
     @Override
     public Object instantiateItem( ViewGroup parent, int position ) {
-      WeatherData data = _weatherData.get( position );
+      final WeatherData data = _weatherData.get( position );
       boolean isNight = data.getTitle().toLowerCase().contains( "night" );
 
       View parentView = LayoutInflater.from( _context ).inflate( R.layout.weather_layout, parent, false );
@@ -234,6 +236,15 @@ public class MainActivity extends Activity {
       TextView weatherTextView = (TextView) parentView.findViewById( R.id.weather_text );
 
       iconView.setImageDrawable( data.getIconDrawable( _context ) );
+      iconView.setOnClickListener(new View.OnClickListener(){
+        public void onClick( View v ){
+          Intent intent = new Intent();
+          intent.setAction(Intent.ACTION_VIEW);
+          intent.addCategory(Intent.CATEGORY_BROWSABLE);
+          intent.setData( Uri.parse( data.getIconURL() ) );
+          _context.startActivity(intent);
+        }
+      });
       titleView.setText( data.getTitle() );
       weatherTextView.setText( data.getWeather() + "\n" + data.getWeatherText() );
 
@@ -433,6 +444,6 @@ public class MainActivity extends Activity {
     public String getPercentOfPrecipitation() { return _percentOfPrecipitation; }
     public String getWeather() { return _weather; }
     public String getWeatherText() { return _weatherText; }
-    public String iconURL() { return _iconURL; }
+    public String getIconURL() { return _iconURL; }
   }
 }
