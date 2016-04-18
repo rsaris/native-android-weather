@@ -15,6 +15,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 
@@ -42,27 +43,12 @@ public class MainActivity extends Activity {
   @Override
   protected void onCreate( Bundle savedInstanceState ) {
     super.onCreate( savedInstanceState );
-    setContentView( R.layout.refresh_list_layout );
+    setContentView( R.layout.weather_loading_layout );
 
     _weatherData = new ArrayList<>();
-    List<List<WeatherData>> listViewList = new ArrayList<>();
-    listViewList.add( _weatherData );
-
     _pagerAdapter = new WeatherViewPagerAdapter( this, _weatherData );
-
-    _refreshView = (SwipeRefreshLayout) findViewById( R.id.refresh );
-    _refreshView.setOnRefreshListener( new SwipeRefreshLayout.OnRefreshListener() {
-      @Override
-      public void onRefresh() {
-        WeatherTask weatherTask = new WeatherTask();
-        weatherTask.execute();
-      }
-    });
-
     _listAdapter = new WeatherListAdapter( this );
 
-    ListView listView = (ListView) _refreshView.findViewById( R.id.list );
-    listView.setAdapter( _listAdapter );
     WeatherTask weatherTask = new WeatherTask();
     weatherTask.execute();
   }
@@ -107,6 +93,7 @@ public class MainActivity extends Activity {
     }
 
     protected void onPostExecute( String result ) {
+      _weatherData.clear();
       if( result != null ) {
         try {
           JSONObject response = new JSONObject( result );
@@ -120,7 +107,6 @@ public class MainActivity extends Activity {
           JSONArray rawWeatherTexts = rawWeatherData.getJSONArray( "text" );
           JSONArray rawIconURLs = rawWeatherData.getJSONArray( "iconLink" );
 
-          _weatherData.clear();
           for( int i = 0; i < rawTimePeriods.length(); i++ ) {
             _weatherData.add(
               new WeatherData(
@@ -135,7 +121,23 @@ public class MainActivity extends Activity {
           }
         } catch( JSONException je ) {
           Log.e( getResources().getString( R.string.exception_tag ), "Caught JSONException while processing result.", je );
+          _weatherData.clear();
         }
+      }
+
+      if( _refreshView == null ) {
+        setContentView( R.layout.refresh_list_layout );
+        _refreshView = (SwipeRefreshLayout) findViewById( R.id.refresh );
+        _refreshView.setOnRefreshListener( new SwipeRefreshLayout.OnRefreshListener() {
+          @Override
+          public void onRefresh() {
+            WeatherTask weatherTask = new WeatherTask();
+            weatherTask.execute();
+          }
+        });
+
+        ListView listView = (ListView) _refreshView.findViewById( R.id.list );
+        listView.setAdapter( _listAdapter );
       }
 
       _listAdapter.notifyDataSetChanged();
@@ -155,27 +157,49 @@ public class MainActivity extends Activity {
 
     @Override
     public View getView( int position, View convertView, ViewGroup parent ) {
-      ViewPager pager;
       if( convertView == null ) {
-        convertView = LayoutInflater.from( _context ).inflate( R.layout.pager_layout, parent, false );
-        pager = (ViewPager) convertView.findViewById( R.id.pager );
-        pager.setAdapter( _pagerAdapter );
-        pager.addOnPageChangeListener( new ViewPager.OnPageChangeListener() {
-          @Override
-          public void onPageScrolled( int position, float v, int i1 ) {
+        convertView = LayoutInflater.from( _context ).inflate( R.layout.list_item_layout, parent, false );
+      }
+
+      LinearLayout parentView = (LinearLayout)convertView;
+      View childView = parentView.getChildAt( 0 );
+      if( _weatherData.size() == 0 ) {
+        if( childView == null || childView instanceof ViewPager ) {
+          if( childView != null ) {
+            parentView.removeView( childView );
           }
 
-          @Override
-          public void onPageSelected( int position ) {
-          }
-
-          @Override
-          public void onPageScrollStateChanged( int state ) {
-            _refreshView.setEnabled( state == ViewPager.SCROLL_STATE_IDLE );
-          }
-        } );
+          LayoutInflater.from( _context ).inflate( R.layout.weather_error_layout, parentView );
+          ((TextView)parentView.findViewById( R.id.message )).setText( "Please check your connection." );
+        }
       } else {
-        pager = (ViewPager) convertView.findViewById( R.id.pager );
+        ViewPager pager;
+        if( childView == null || !(childView instanceof ViewPager) ) {
+          if( childView != null ) {
+            parentView.removeView( childView );
+          }
+
+          LayoutInflater.from( _context ).inflate( R.layout.pager_layout, parentView );
+          pager = (ViewPager)parentView.findViewById( R.id.pager );
+          pager.setAdapter( _pagerAdapter );
+          pager.addOnPageChangeListener( new ViewPager.OnPageChangeListener() {
+            @Override
+            public void onPageScrolled( int position, float v, int i1 ) {
+            }
+
+            @Override
+            public void onPageSelected( int position ) {
+            }
+
+            @Override
+            public void onPageScrollStateChanged( int state ) {
+              _refreshView.setEnabled( state == ViewPager.SCROLL_STATE_IDLE );
+            }
+          });
+        } else {
+          pager = (ViewPager)parentView.findViewById( R.id.pager );
+        }
+
         pager.getAdapter().notifyDataSetChanged();
         pager.setCurrentItem( 0 );
       }
