@@ -433,6 +433,10 @@ public class MainActivity extends Activity {
           case "scttsra":
             iconID = R.drawable.weather_thunderstorm;
             break;
+          case "nvc":
+          case "vc":
+            iconID = R.drawable.weather_cloudy;
+            break;
         }
       }
 
