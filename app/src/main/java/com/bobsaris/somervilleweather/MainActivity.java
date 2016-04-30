@@ -232,8 +232,9 @@ public class MainActivity extends Activity {
 
       View parentView = LayoutInflater.from( _context ).inflate( R.layout.weather_layout, parent, false );
       ImageView iconView = (ImageView) parentView.findViewById( R.id.weather_icon );
-      TextView titleView = (TextView) parentView.findViewById( R.id.title );
-      TextView weatherTextView = (TextView) parentView.findViewById( R.id.weather_text );
+      TextView dayView = (TextView) parentView.findViewById( R.id.weather_day );
+      TextView weatherTitleView = (TextView) parentView.findViewById( R.id.weather_title );
+      TextView weatherDescriptionView = (TextView) parentView.findViewById( R.id.weather_description );
 
       iconView.setImageDrawable( data.getIconDrawable( _context ) );
       iconView.setOnClickListener(new View.OnClickListener(){
@@ -245,17 +246,20 @@ public class MainActivity extends Activity {
           _context.startActivity(intent);
         }
       });
-      titleView.setText( data.getTitle() );
-      weatherTextView.setText( data.getWeather() + "\n" + data.getWeatherText() );
+      dayView.setText( data.getTitle() );
+      weatherTitleView.setText( data.getWeather() );
+      weatherDescriptionView.setText( data.getWeatherText() );
 
       if( isNight ) {
         parentView.setBackgroundColor( ContextCompat.getColor( _context, R.color.nightBackground ) );
-        titleView.setTextColor( ContextCompat.getColor( _context, R.color.nightText ) );
-        weatherTextView.setTextColor( ContextCompat.getColor( _context, R.color.nightText ) );
+        dayView.setTextColor( ContextCompat.getColor( _context, R.color.nightText ) );
+        weatherTitleView.setTextColor( ContextCompat.getColor( _context, R.color.nightText ) );
+        weatherDescriptionView.setTextColor( ContextCompat.getColor( _context, R.color.nightText ) );
       } else {
         parentView.setBackgroundColor( ContextCompat.getColor( _context, R.color.dayBackground ) );
-        titleView.setTextColor( ContextCompat.getColor( _context, R.color.dayText ) );
-        weatherTextView.setTextColor( ContextCompat.getColor( _context, R.color.dayText ) );
+        dayView.setTextColor( ContextCompat.getColor( _context, R.color.dayText ) );
+        weatherTitleView.setTextColor( ContextCompat.getColor( _context, R.color.dayText ) );
+        weatherDescriptionView.setTextColor( ContextCompat.getColor( _context, R.color.dayText ) );
       }
 
       parent.addView( parentView );

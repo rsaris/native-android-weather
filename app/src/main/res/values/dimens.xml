@@ -2,8 +2,10 @@
     <dimen name="weather_padding_side">20dp</dimen>
     <dimen name="weather_image_margin_top">50dp</dimen>
     <dimen name="weather_image_margin_bottom">50dp</dimen>
+    <dimen name="weather_day_margin_top">0dp</dimen>
+    <dimen name="weather_day_margin_bottom">10dp</dimen>
     <dimen name="weather_title_margin_top">0dp</dimen>
     <dimen name="weather_title_margin_bottom">50dp</dimen>
-    <dimen name="weather_text_margin_top">0dp</dimen>
-    <dimen name="weather_text_margin_bottom">0dp</dimen>
+    <dimen name="weather_description_margin_top">0dp</dimen>
+    <dimen name="weather_description_margin_bottom">0dp</dimen>
 </resources>

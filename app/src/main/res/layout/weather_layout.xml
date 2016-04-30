@@ -17,22 +17,32 @@
         />
 
     <TextView
-        android:id="@+id/title"
+        android:id="@+id/weather_day"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/weather_title_margin_top"
-        android:layout_marginBottom="@dimen/weather_title_margin_bottom"
+        android:layout_marginTop="@dimen/weather_day_margin_top"
+        android:layout_marginBottom="@dimen/weather_day_margin_bottom"
         android:textAppearance="?android:attr/textAppearanceLarge"
         android:text="Loading..."
         android:textAlignment="center"
         />
 
     <TextView
-        android:id="@+id/weather_text"
+        android:id="@+id/weather_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/weather_text_margin_top"
-        android:layout_marginBottom="@dimen/weather_text_margin_bottom"
+        android:layout_marginTop="@dimen/weather_title_margin_top"
+        android:layout_marginBottom="@dimen/weather_title_margin_bottom"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:textAlignment="center"
+        />
+
+    <TextView
+        android:id="@+id/weather_description"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/weather_description_margin_top"
+        android:layout_marginBottom="@dimen/weather_description_margin_bottom"
         android:textAppearance="?android:attr/textAppearanceMedium"
         android:textAlignment="center"
         android:text="Loading..." />
