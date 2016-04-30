@@ -32,6 +32,7 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -101,6 +102,18 @@ public class MainActivity extends Activity {
           JSONObject response = new JSONObject( result );
           JSONObject timeData = response.getJSONObject( "time" );
           JSONArray rawTimePeriods = timeData.getJSONArray( "startPeriodName" );
+
+          JSONObject currentObservationData = response.getJSONObject( "currentobservation" );
+          _weatherData.add(
+            new WeatherData(
+              "Right Now",
+              currentObservationData.getString( "Temp" ),
+              null,
+              currentObservationData.getString( "Weather" ),
+              "It is currently " + currentObservationData.getString( "Temp" ) + " degrees outside.",
+              "/" + currentObservationData.getString( "Weatherimage" )
+            )
+          );
 
           JSONObject rawWeatherData = response.getJSONObject( "data" );
           JSONArray rawTemperatures = rawWeatherData.getJSONArray( "temperature" );
@@ -228,7 +241,10 @@ public class MainActivity extends Activity {
     @Override
     public Object instantiateItem( ViewGroup parent, int position ) {
       final WeatherData data = _weatherData.get( position );
-      boolean isNight = data.getTitle().toLowerCase().contains( "night" );
+      Calendar cal = Calendar.getInstance();
+      boolean isNight = data.getTitle().toLowerCase().contains( "night" ) ||
+        (data.getTitle().toLowerCase().contains( "now" ) &&
+          (cal.get( Calendar.HOUR_OF_DAY ) > 18 || cal.get( Calendar.HOUR_OF_DAY ) < 5));
 
       View parentView = LayoutInflater.from( _context ).inflate( R.layout.weather_layout, parent, false );
       ImageView iconView = (ImageView) parentView.findViewById( R.id.weather_icon );
@@ -311,7 +327,6 @@ public class MainActivity extends Activity {
       if( simpleMatcher.matches() || doubleMatcher.matches() ) {
         String matchFile = (simpleMatcher.matches() ? simpleMatcher.group( 1 ) : doubleMatcher.group( 1 ));
         switch( matchFile ) {
-          case "nbkn":
           case "nskc":
           case "nfew":
             iconID = R.drawable.weather_night_clear;
@@ -322,6 +337,7 @@ public class MainActivity extends Activity {
             iconID = R.drawable.weather_day_clear;
             break;
           case "nsct":
+          case "nbkn":
             iconID = R.drawable.weather_night_cloudy;
             break;
           case "sct":
