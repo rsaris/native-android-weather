@@ -1,27 +1,38 @@
 package com.bobsaris.somervilleweather;
 
+import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.graphics.drawable.Drawable;
+import android.location.Location;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.util.Log;
+import android.view.ContextThemeWrapper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.inputmethod.InputMethodManager;
 import android.widget.ArrayAdapter;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
+
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
+import com.google.android.gms.common.api.GoogleApiClient.OnConnectionFailedListener;
+import com.google.android.gms.location.LocationServices;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -39,9 +50,11 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class MainActivity extends Activity {
-  private static final float SOMERVILLE_LAT = 42.39f;
-  private static final float SOMERVILLE_LNG = -71.15f;
+public class MainActivity extends Activity implements ConnectionCallbacks, OnConnectionFailedListener {
+  private static final long SOMERVILLE_LAT = Double.doubleToLongBits( 42.39 );
+  private static final long SOMERVILLE_LNG = Double.doubleToLongBits( -71.15 );
+
+  private static final int PERMISSION_REQUESTED_COARSE_LOCATION = 1;
 
   private static final String PREFS_KEY = "WEATHERPREFS";
   private static final String LOCATION_LAT_KEY = "LOCATIONLAT";
@@ -51,6 +64,7 @@ public class MainActivity extends Activity {
   private List<WeatherData> _weatherData;
   private WeatherListAdapter _listAdapter;
   private WeatherViewPagerAdapter _pagerAdapter;
+  private GoogleApiClient _googleApiClient;
 
   @Override
   protected void onCreate( Bundle savedInstanceState ) {
@@ -61,53 +75,94 @@ public class MainActivity extends Activity {
     _pagerAdapter = new WeatherViewPagerAdapter( this, _weatherData );
     _listAdapter = new WeatherListAdapter( this );
 
+    // Create an instance of GoogleAPIClient.
+    if (_googleApiClient == null) {
+      _googleApiClient = new GoogleApiClient.Builder(this)
+        .addConnectionCallbacks(this)
+        .addOnConnectionFailedListener(this)
+        .addApi( LocationServices.API )
+        .build();
+    }
+
     WeatherTask weatherTask = new WeatherTask();
     weatherTask.execute();
   }
 
+  @Override
+  public void onStart() {
+    _googleApiClient.connect();
+    super.onStart();
+  }
+
+  @Override
+  public void onStop() {
+    _googleApiClient.disconnect();
+    super.onStop();
+  }
+
   public void onSaveButtonClick( View view ) {
-    TextView latView = (TextView) ( (View) view.getParent() ).findViewById( R.id.location_lat );
-    TextView lngView = (TextView) ( (View) view.getParent() ).findViewById( R.id.location_lng );
+    updateLatLng();
+  }
 
-    View focusView = this.getCurrentFocus();
-    if (focusView != null) {
-      InputMethodManager imm = (InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
-      imm.hideSoftInputFromWindow(focusView.getWindowToken(), 0);
+  @Override
+  public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
+    switch (requestCode) {
+      case PERMISSION_REQUESTED_COARSE_LOCATION: {
+        if( grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+          updateLatLng();
+        }
+      }
     }
+  }
 
-    try {
-      float lat = Float.parseFloat( latView.getText().toString() );
-      float lng = Float.parseFloat( lngView.getText().toString() );
+  @Override
+  public void onConnected( Bundle connectionHunt ) {
+  }
 
-      if( Math.abs( lat ) > 180 || Math.abs( lng ) > 180 ) {
-        Log.d( getResources().getString( R.string.log_tag ), "Got invalid lat, lng: " + lat + ", " + lng );
-      } else {
-        Log.d( getResources().getString( R.string.log_tag ), "Updating location to " + lat + ", " + lng );
+  @Override
+  public void onConnectionSuspended( int param ) {
+  }
 
-        saveLatLng( view.getContext(), lat, lng );
+  @Override
+  public void onConnectionFailed( ConnectionResult result ) {
+  }
+
+  private void updateLatLng() {
+    int permissionCheck = ContextCompat.checkSelfPermission( this, Manifest.permission.ACCESS_COARSE_LOCATION );
+    if( permissionCheck != PackageManager.PERMISSION_GRANTED ) {
+      ActivityCompat.requestPermissions( this,  new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, PERMISSION_REQUESTED_COARSE_LOCATION );
+    } else {
+      Location lastLocation = LocationServices.FusedLocationApi.getLastLocation( _googleApiClient );
+      if( lastLocation != null ) {
+        Log.d( getResources().getString( R.string.log_tag ), "Got new location: " + lastLocation.getLatitude() + ", " + lastLocation.getLongitude() );
+        saveLatLng( getBaseContext(), lastLocation.getLatitude(), lastLocation.getLongitude() );
 
         WeatherTask weatherTask = new WeatherTask();
         weatherTask.execute();
+      } else {
+        new AlertDialog.Builder( new ContextThemeWrapper( this, R.style.Theme_Dialog_Alert_Weather ) )
+          .setTitle( "Error loading location" )
+          .setMessage( "There was an error loading the location, please try again." )
+          .setPositiveButton( "OK", null )
+          .show();
       }
-    } catch( NumberFormatException nfe ) {
-      Log.e( getResources().getString( R.string.exception_tag ), "Got invalid format when parsing floats.", nfe );
     }
   }
 
-  public static Float[] loadLatLng( Context context ) {
+  private static Double[] loadLatLng( Context context ) {
     SharedPreferences prefs = context.getSharedPreferences( PREFS_KEY, Context.MODE_PRIVATE );
-    return new Float[]{
-      Float.valueOf( prefs.getFloat( LOCATION_LAT_KEY, SOMERVILLE_LAT ) ),
-      Float.valueOf( prefs.getFloat( LOCATION_LNG_KEY, SOMERVILLE_LNG ) )
+    return new Double[]{
+      Double.longBitsToDouble( prefs.getLong( LOCATION_LAT_KEY, SOMERVILLE_LAT ) ),
+      Double.longBitsToDouble( prefs.getLong( LOCATION_LNG_KEY, SOMERVILLE_LNG ) )
     };
   }
 
-  public static void saveLatLng( Context context, float lat, float lng ) {
+  private static void saveLatLng( Context context, double lat, double lng ) {
     SharedPreferences prefs = context.getSharedPreferences( PREFS_KEY, Context.MODE_PRIVATE );
     SharedPreferences.Editor prefsEditor = prefs.edit();
 
-    prefsEditor.putFloat( LOCATION_LAT_KEY, lat );
-    prefsEditor.putFloat( LOCATION_LNG_KEY, lng );
+    prefsEditor.putLong( LOCATION_LAT_KEY, Double.doubleToLongBits( lat ) );
+    prefsEditor.putLong( LOCATION_LNG_KEY, Double.doubleToLongBits( lng ) );
     prefsEditor.commit();
   }
 
@@ -117,7 +172,7 @@ public class MainActivity extends Activity {
 
     protected String doInBackground( Void... placeholder ) {
       try {
-        Float[] latLng = loadLatLng( getBaseContext() );
+        Double[] latLng = loadLatLng( getBaseContext() );
         URL url = new URL(
           NOAA_BASE_URL +
             "?lat=" + latLng[0] +
@@ -285,14 +340,7 @@ public class MainActivity extends Activity {
     public Object instantiateItem( ViewGroup parent, int position ) {
       if( position == 0 ) {
         View settingsView = LayoutInflater.from( _context ).inflate( R.layout.settings_layout, parent, false );
-
-        Float[] latLng = loadLatLng( _context );
-
-        ((TextView)settingsView.findViewById( R.id.location_lat )).setText( latLng[0].toString() );
-        ((TextView)settingsView.findViewById( R.id.location_lng )).setText( latLng[1].toString() );
-
         parent.addView( settingsView );
-
         return settingsView;
       } else if ( _weatherData.size() == 0 ) {
         View errorView = LayoutInflater.from( _context ).inflate( R.layout.weather_error_layout, parent, false );

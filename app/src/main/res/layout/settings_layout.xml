@@ -3,25 +3,11 @@
               android:orientation="vertical"
               android:layout_width="match_parent"
               android:layout_height="match_parent">
-    <EditText
-        android:id="@+id/location_lat"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:inputType="numberDecimal|numberSigned"
-        android:hint="Latitude"
-        />
-    <EditText
-        android:id="@+id/location_lng"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:inputType="numberDecimal|numberSigned"
-        android:hint="Longitude"
-        />
     <Button
         android:id="@+id/setting_btn"
         android:onClick="onSaveButtonClick"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Save"
+        android:text="Update Location"
         />
 </LinearLayout>
