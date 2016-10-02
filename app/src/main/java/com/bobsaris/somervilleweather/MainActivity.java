@@ -340,6 +340,17 @@ public class MainActivity extends Activity implements ConnectionCallbacks, OnCon
     public Object instantiateItem( ViewGroup parent, int position ) {
       if( position == 0 ) {
         View settingsView = LayoutInflater.from( _context ).inflate( R.layout.settings_layout, parent, false );
+
+        Double[] latLng = loadLatLng( _context );
+        StringBuilder statusBuilder = new StringBuilder();
+        statusBuilder.append( "Current location is (" );
+        statusBuilder.append( String.format( "%.2f", latLng[0] ) );
+        statusBuilder.append( ", " );
+        statusBuilder.append( String.format( "%.2f", latLng[1] ) );
+        statusBuilder.append( ")" );
+
+        ((TextView)settingsView.findViewById( R.id.current_location )).setText( statusBuilder.toString() );
+
         parent.addView( settingsView );
         return settingsView;
       } else if ( _weatherData.size() == 0 ) {

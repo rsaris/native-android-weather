@@ -1,13 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
               android:orientation="vertical"
               android:layout_width="match_parent"
               android:layout_height="match_parent">
+    <TextView
+        android:id="@+id/current_location"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:layout_marginTop="75dp"
+        />
     <Button
         android:id="@+id/setting_btn"
         android:onClick="onSaveButtonClick"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_centerInParent="true"
+        android:padding="30dp"
         android:text="Update Location"
+        android:background="@color/colorPrimary"
+        android:textColor="@color/colorAccent"
+        style="?android:attr/borderlessButtonStyle"
         />
-</LinearLayout>
+</RelativeLayout>
