@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">Somerville Weather</string>
     <string name="exception_tag">Exception</string>
+    <string name="log_tag">Log</string>
 </resources>

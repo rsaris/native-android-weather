@@ -3,6 +3,7 @@ package com.bobsaris.somervilleweather;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -15,6 +16,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.ArrayAdapter;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -38,6 +40,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class MainActivity extends Activity {
+  private static final float SOMERVILLE_LAT = 42.39f;
+  private static final float SOMERVILLE_LNG = -71.15f;
+
+  private static final String PREFS_KEY = "WEATHERPREFS";
+  private static final String LOCATION_LAT_KEY = "LOCATIONLAT";
+  private static final String LOCATION_LNG_KEY = "LOCATIONLNG";
+
   private SwipeRefreshLayout _refreshView;
   private List<WeatherData> _weatherData;
   private WeatherListAdapter _listAdapter;
@@ -56,20 +65,63 @@ public class MainActivity extends Activity {
     weatherTask.execute();
   }
 
-  private class WeatherTask extends AsyncTask<Void, Integer, String> {
-    private String SOMERVILLE_ZIP = "02143";
-    private String SOMERVILLE_LAT = "42.39";
-    private String SOMERVILLE_LON = "-71.15";
+  public void onSaveButtonClick( View view ) {
+    TextView latView = (TextView) ( (View) view.getParent() ).findViewById( R.id.location_lat );
+    TextView lngView = (TextView) ( (View) view.getParent() ).findViewById( R.id.location_lng );
 
+    View focusView = this.getCurrentFocus();
+    if (focusView != null) {
+      InputMethodManager imm = (InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
+      imm.hideSoftInputFromWindow(focusView.getWindowToken(), 0);
+    }
+
+    try {
+      float lat = Float.parseFloat( latView.getText().toString() );
+      float lng = Float.parseFloat( lngView.getText().toString() );
+
+      if( Math.abs( lat ) > 180 || Math.abs( lng ) > 180 ) {
+        Log.d( getResources().getString( R.string.log_tag ), "Got invalid lat, lng: " + lat + ", " + lng );
+      } else {
+        Log.d( getResources().getString( R.string.log_tag ), "Updating location to " + lat + ", " + lng );
+
+        saveLatLng( view.getContext(), lat, lng );
+
+        WeatherTask weatherTask = new WeatherTask();
+        weatherTask.execute();
+      }
+    } catch( NumberFormatException nfe ) {
+      Log.e( getResources().getString( R.string.exception_tag ), "Got invalid format when parsing floats.", nfe );
+    }
+  }
+
+  public static Float[] loadLatLng( Context context ) {
+    SharedPreferences prefs = context.getSharedPreferences( PREFS_KEY, Context.MODE_PRIVATE );
+    return new Float[]{
+      Float.valueOf( prefs.getFloat( LOCATION_LAT_KEY, SOMERVILLE_LAT ) ),
+      Float.valueOf( prefs.getFloat( LOCATION_LNG_KEY, SOMERVILLE_LNG ) )
+    };
+  }
+
+  public static void saveLatLng( Context context, float lat, float lng ) {
+    SharedPreferences prefs = context.getSharedPreferences( PREFS_KEY, Context.MODE_PRIVATE );
+    SharedPreferences.Editor prefsEditor = prefs.edit();
+
+    prefsEditor.putFloat( LOCATION_LAT_KEY, lat );
+    prefsEditor.putFloat( LOCATION_LNG_KEY, lng );
+    prefsEditor.commit();
+  }
+
+  private class WeatherTask extends AsyncTask<Void, Integer, String> {
     // private String NOAA_BASE_URL = "http://graphical.weather.gov/xml/sample_products/browser_interface/ndfdBrowserClientByDay.php";
     private String NOAA_BASE_URL = "http://forecast.weather.gov/MapClick.php";
 
     protected String doInBackground( Void... placeholder ) {
       try {
+        Float[] latLng = loadLatLng( getBaseContext() );
         URL url = new URL(
           NOAA_BASE_URL +
-            "?lat=" + SOMERVILLE_LAT +
-            "&lon=" + SOMERVILLE_LON +
+            "?lat=" + latLng[0] +
+            "&lon=" + latLng[1] +
             "&FcstType=json"
         );
 
@@ -178,46 +230,36 @@ public class MainActivity extends Activity {
 
       LinearLayout parentView = (LinearLayout)convertView;
       View childView = parentView.getChildAt( 0 );
-      if( _weatherData.size() == 0 ) {
-        if( childView == null || childView instanceof ViewPager ) {
-          if( childView != null ) {
-            parentView.removeView( childView );
+
+      ViewPager pager;
+      if( childView == null || !(childView instanceof ViewPager) ) {
+        if( childView != null ) {
+          parentView.removeView( childView );
+        }
+
+        LayoutInflater.from( _context ).inflate( R.layout.pager_layout, parentView );
+        pager = (ViewPager)parentView.findViewById( R.id.pager );
+        pager.setAdapter( _pagerAdapter );
+        pager.addOnPageChangeListener( new ViewPager.OnPageChangeListener() {
+          @Override
+          public void onPageScrolled( int position, float v, int i1 ) {
           }
 
-          LayoutInflater.from( _context ).inflate( R.layout.weather_error_layout, parentView );
-          ((TextView)parentView.findViewById( R.id.message )).setText( "Please check your connection." );
-        }
+          @Override
+          public void onPageSelected( int position ) {
+          }
+
+          @Override
+          public void onPageScrollStateChanged( int state ) {
+            _refreshView.setEnabled( state == ViewPager.SCROLL_STATE_IDLE );
+          }
+        });
       } else {
-        ViewPager pager;
-        if( childView == null || !(childView instanceof ViewPager) ) {
-          if( childView != null ) {
-            parentView.removeView( childView );
-          }
-
-          LayoutInflater.from( _context ).inflate( R.layout.pager_layout, parentView );
-          pager = (ViewPager)parentView.findViewById( R.id.pager );
-          pager.setAdapter( _pagerAdapter );
-          pager.addOnPageChangeListener( new ViewPager.OnPageChangeListener() {
-            @Override
-            public void onPageScrolled( int position, float v, int i1 ) {
-            }
-
-            @Override
-            public void onPageSelected( int position ) {
-            }
-
-            @Override
-            public void onPageScrollStateChanged( int state ) {
-              _refreshView.setEnabled( state == ViewPager.SCROLL_STATE_IDLE );
-            }
-          });
-        } else {
-          pager = (ViewPager)parentView.findViewById( R.id.pager );
-        }
-
-        pager.getAdapter().notifyDataSetChanged();
-        pager.setCurrentItem( 0 );
+        pager = (ViewPager)parentView.findViewById( R.id.pager );
       }
+
+      pager.getAdapter().notifyDataSetChanged();
+      pager.setCurrentItem( 1 );
 
       convertView.setMinimumHeight( parent.getHeight() );
       return convertView;
@@ -235,51 +277,73 @@ public class MainActivity extends Activity {
 
     @Override
     public int getCount() {
-      return _weatherData.size();
+      // Always make sure to include two views, one for settings and one for an error
+      return Math.max( _weatherData.size() + 1, 2 );
     }
 
     @Override
     public Object instantiateItem( ViewGroup parent, int position ) {
-      final WeatherData data = _weatherData.get( position );
-      Calendar cal = Calendar.getInstance();
-      boolean isNight = data.getTitle().toLowerCase().contains( "night" ) ||
-        (data.getTitle().toLowerCase().contains( "now" ) &&
-          (cal.get( Calendar.HOUR_OF_DAY ) > 18 || cal.get( Calendar.HOUR_OF_DAY ) < 5));
+      if( position == 0 ) {
+        View settingsView = LayoutInflater.from( _context ).inflate( R.layout.settings_layout, parent, false );
 
-      View parentView = LayoutInflater.from( _context ).inflate( R.layout.weather_layout, parent, false );
-      ImageView iconView = (ImageView) parentView.findViewById( R.id.weather_icon );
-      TextView dayView = (TextView) parentView.findViewById( R.id.weather_day );
-      TextView weatherTitleView = (TextView) parentView.findViewById( R.id.weather_title );
-      TextView weatherDescriptionView = (TextView) parentView.findViewById( R.id.weather_description );
+        Float[] latLng = loadLatLng( _context );
 
-      iconView.setImageDrawable( data.getIconDrawable( _context ) );
-      iconView.setOnClickListener(new View.OnClickListener(){
-        public void onClick( View v ){
-          Intent intent = new Intent();
-          intent.setAction(Intent.ACTION_VIEW);
-          intent.addCategory(Intent.CATEGORY_BROWSABLE);
-          intent.setData( Uri.parse( data.getIconURL() ) );
-          _context.startActivity(intent);
-        }
-      });
-      dayView.setText( data.getTitle() );
-      weatherTitleView.setText( data.getWeather() );
-      weatherDescriptionView.setText( data.getWeatherText() );
+        ((TextView)settingsView.findViewById( R.id.location_lat )).setText( latLng[0].toString() );
+        ((TextView)settingsView.findViewById( R.id.location_lng )).setText( latLng[1].toString() );
 
-      if( isNight ) {
-        parentView.setBackgroundColor( ContextCompat.getColor( _context, R.color.nightBackground ) );
-        dayView.setTextColor( ContextCompat.getColor( _context, R.color.nightText ) );
-        weatherTitleView.setTextColor( ContextCompat.getColor( _context, R.color.nightText ) );
-        weatherDescriptionView.setTextColor( ContextCompat.getColor( _context, R.color.nightText ) );
+        parent.addView( settingsView );
+
+        return settingsView;
+      } else if ( _weatherData.size() == 0 ) {
+        View errorView = LayoutInflater.from( _context ).inflate( R.layout.weather_error_layout, parent, false );
+
+        ((TextView)errorView.findViewById( R.id.message )).setText( "Please check your connection." );
+
+        parent.addView( errorView );
+
+        return errorView;
       } else {
-        parentView.setBackgroundColor( ContextCompat.getColor( _context, R.color.dayBackground ) );
-        dayView.setTextColor( ContextCompat.getColor( _context, R.color.dayText ) );
-        weatherTitleView.setTextColor( ContextCompat.getColor( _context, R.color.dayText ) );
-        weatherDescriptionView.setTextColor( ContextCompat.getColor( _context, R.color.dayText ) );
-      }
+        final WeatherData data = _weatherData.get( position - 1 );
+        Calendar cal = Calendar.getInstance();
+        boolean isNight = data.getTitle().toLowerCase().contains( "night" ) ||
+          ( data.getTitle().toLowerCase().contains( "now" ) &&
+            ( cal.get( Calendar.HOUR_OF_DAY ) > 18 || cal.get( Calendar.HOUR_OF_DAY ) < 5 ) );
 
-      parent.addView( parentView );
-      return parentView;
+        View parentView = LayoutInflater.from( _context ).inflate( R.layout.weather_layout, parent, false );
+        ImageView iconView = (ImageView) parentView.findViewById( R.id.weather_icon );
+        TextView dayView = (TextView) parentView.findViewById( R.id.weather_day );
+        TextView weatherTitleView = (TextView) parentView.findViewById( R.id.weather_title );
+        TextView weatherDescriptionView = (TextView) parentView.findViewById( R.id.weather_description );
+
+        iconView.setImageDrawable( data.getIconDrawable( _context ) );
+        iconView.setOnClickListener( new View.OnClickListener() {
+          public void onClick( View v ) {
+            Intent intent = new Intent();
+            intent.setAction( Intent.ACTION_VIEW );
+            intent.addCategory( Intent.CATEGORY_BROWSABLE );
+            intent.setData( Uri.parse( data.getIconURL() ) );
+            _context.startActivity( intent );
+          }
+        } );
+        dayView.setText( data.getTitle() );
+        weatherTitleView.setText( data.getWeather() );
+        weatherDescriptionView.setText( data.getWeatherText() );
+
+        if( isNight ) {
+          parentView.setBackgroundColor( ContextCompat.getColor( _context, R.color.nightBackground ) );
+          dayView.setTextColor( ContextCompat.getColor( _context, R.color.nightText ) );
+          weatherTitleView.setTextColor( ContextCompat.getColor( _context, R.color.nightText ) );
+          weatherDescriptionView.setTextColor( ContextCompat.getColor( _context, R.color.nightText ) );
+        } else {
+          parentView.setBackgroundColor( ContextCompat.getColor( _context, R.color.dayBackground ) );
+          dayView.setTextColor( ContextCompat.getColor( _context, R.color.dayText ) );
+          weatherTitleView.setTextColor( ContextCompat.getColor( _context, R.color.dayText ) );
+          weatherDescriptionView.setTextColor( ContextCompat.getColor( _context, R.color.dayText ) );
+        }
+
+        parent.addView( parentView );
+        return parentView;
+      }
     }
 
     @Override
